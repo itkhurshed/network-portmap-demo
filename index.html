@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Network Port Map — Live Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --rack:#14181d; --rack-2:#1b2027; --plate:#3a414a; --plate-hi:#4a525c; --plate-lo:#2c3239;
+  --socket:#07090b; --silk:#cfd6de; --silk-dim:#8b96a3; --line:#2a3038;
+  --link:#2ee86a; --act:#ffb224; --fault:#ff3b3b; --warn:#f5c451; --off:#1e2328; --info:#5cc8ff;
+  --f-label:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --f-body:"Barlow",Arial,sans-serif; --f-data:"IBM Plex Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -200px,#232a33 0%,var(--rack) 60%);color:var(--silk);font:15px/1.5 var(--f-body);min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.wrap{max-width:1500px;margin:0 auto;padding:22px 24px 60px}
+
+/* header */
+header.top{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:16px}
+h1{font:700 34px/1 var(--f-label);letter-spacing:.5px;margin:0;color:#eef2f6}
+.sub{color:var(--silk-dim);margin-top:6px;font-size:14px}
+.clock{text-align:right;font-family:var(--f-data);font-size:13px;color:var(--silk-dim)}
+.clock b{display:block;font:600 26px/1.1 var(--f-label);color:#eef2f6;letter-spacing:1px}
+.live{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--f-label);letter-spacing:.6px;color:var(--link)}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--link);box-shadow:0 0 8px var(--link);animation:beat 2s infinite}
+.live.stale{color:var(--warn)} .live.stale i{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+@keyframes beat{0%,60%,100%{opacity:1}30%{opacity:.25}}
+
+/* front panel status strip */
+.panel{margin:18px 0 14px;display:flex;flex-wrap:wrap;background:linear-gradient(#3d444d,#30363e);border:1px solid #4b535d;border-radius:4px;box-shadow:inset 0 1px 0 #59616b,0 6px 18px #0006}
+.stat{flex:1 1 150px;display:flex;align-items:center;gap:12px;padding:12px 18px;border-right:1px solid #262b31;cursor:pointer;background:none;border-top:0;border-bottom:0;border-left:0;text-align:left}
+.stat:last-child{border-right:0}
+.stat[aria-pressed="true"]{background:#0003;box-shadow:inset 0 2px 6px #0007}
+.stat .led{width:12px;height:12px;border-radius:50%;flex:none}
+.stat .n{font:600 28px/1 var(--f-label);color:#f2f5f8}
+.stat .t{font-size:13px;color:var(--silk-dim)}
+
+.led.g{background:var(--link);box-shadow:0 0 8px var(--link)}
+.led.r{background:var(--fault);box-shadow:0 0 8px var(--fault)}
+.led.y{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.led.b{background:var(--info);box-shadow:0 0 6px var(--info)}
+.led.o{background:#3a4048;box-shadow:inset 0 1px 2px #000}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}
+.search{flex:1 1 320px;display:flex;align-items:center;background:#0d1013;border:1px solid #3a414a;border-radius:4px;padding:0 12px}
+.search input{flex:1;background:none;border:0;padding:11px 8px;outline:none;font-size:15px}
+.search svg{flex:none;opacity:.6}
+select,.btn{background:#22282f;border:1px solid #3a414a;border-radius:4px;padding:10px 12px}
+.btn{cursor:pointer} .btn:hover{background:#2a3139}
+label.tog{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--silk-dim);cursor:pointer}
+.count{font-family:var(--f-data);font-size:13px;color:var(--silk-dim);margin-left:auto}
+
+/* chassis */
+.chassis{margin-bottom:28px}
+.ch-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-bottom:8px}
+.ch-head h2{font:700 22px/1 var(--f-label);margin:0;letter-spacing:.4px;color:#eef2f6}
+.ch-head .cidr{font-family:var(--f-data);font-size:13px;color:var(--info)}
+.ch-head .mini{font-size:13px;color:var(--silk-dim);display:flex;gap:14px}
+.ch-head .mini span{display:inline-flex;align-items:center;gap:6px}
+.ch-head .mini .led{width:8px;height:8px;border-radius:50%}
+.note{font-size:13px;color:#e9c46a;background:#e9c46a14;border-left:3px solid #e9c46a;padding:7px 12px;margin:0 0 10px;border-radius:0 3px 3px 0;max-width:110ch}
+.units{overflow-x:auto;padding-bottom:4px}
+.unit{display:grid;grid-template-columns:62px auto 62px;min-width:max-content;margin-bottom:6px;
+  background:linear-gradient(180deg,var(--plate-hi),var(--plate) 18%,var(--plate) 82%,var(--plate-lo));border:1px solid #555d68;border-radius:3px;box-shadow:0 4px 10px #0007,inset 0 1px 0 #66707b}
+.ear{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;border-right:1px solid #2a2f35;background:linear-gradient(90deg,#363c44,#41484f)}
+.ear:last-child{border-right:0;border-left:1px solid #2a2f35}
+.ear i{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8c949e,#2a2f35);box-shadow:inset 0 0 0 2px #22262b}
+.ear span{font:600 11px var(--f-label);color:var(--silk-dim);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.8px}
+.face{padding:9px 16px 8px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.prow{display:flex;gap:4px}
+.grp{display:flex;gap:4px;margin-right:12px} .grp:last-child{margin-right:0}
+.num{width:30px;text-align:center;font:500 10px/1 var(--f-label);color:var(--silk-dim);height:11px}
+
+.port{width:30px;height:30px;position:relative;cursor:pointer;border:0;padding:0;background:none}
+.port .leds{position:absolute;left:3px;right:3px;top:2px;display:flex;justify-content:space-between}
+.port .l{width:6px;height:4px;border-radius:1px;background:var(--off);box-shadow:inset 0 1px 1px #000}
+.port .sock{position:absolute;left:2px;right:2px;top:8px;bottom:1px;background:var(--socket);border-radius:2px;
+  clip-path:polygon(0 0,100% 0,100% 70%,78% 70%,78% 100%,22% 100%,22% 70%,0 70%);box-shadow:inset 0 2px 3px #000}
+.port .sock::after{content:"";position:absolute;left:6px;right:6px;top:3px;height:3px;background:repeating-linear-gradient(90deg,#b8902d 0 1px,transparent 1px 3px);opacity:.55}
+.port.up .l1{background:var(--link);box-shadow:0 0 5px var(--link)}
+.port.up .l2{animation:act var(--d,1.3s) steps(1,end) var(--o,0s) infinite}
+.port.down .l1{background:var(--fault);box-shadow:0 0 6px var(--fault);animation:fault 1.6s ease-in-out infinite}
+.port.unverified .l1{background:var(--warn);box-shadow:0 0 4px var(--warn)}
+.port.unreachable .sock{opacity:.55}
+.port.free .sock::after{opacity:.2}
+.port.crit::before{content:"";position:absolute;left:0;right:0;bottom:-3px;height:2px;background:var(--info);border-radius:1px}
+.port.flag .sock{box-shadow:inset 0 0 0 1px #e9c46a,inset 0 2px 3px #000}
+.port.dim{opacity:.18}
+.port.hit .sock{box-shadow:inset 0 0 0 2px var(--info)}
+.port:hover .sock,.port.sel .sock{box-shadow:inset 0 0 0 2px #fff}
+@keyframes act{0%{background:var(--act);box-shadow:0 0 5px var(--act)}12%{background:var(--off);box-shadow:none}21%{background:var(--act);box-shadow:0 0 5px var(--act)}30%{background:var(--off);box-shadow:none}58%{background:var(--act);box-shadow:0 0 5px var(--act)}64%{background:var(--off);box-shadow:none}}
+@keyframes fault{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* tooltip + drawer */
+#tip{position:fixed;pointer-events:none;z-index:20;background:#0d1013;border:1px solid #3a414a;border-radius:4px;padding:8px 10px;font-size:13px;box-shadow:0 8px 24px #000a;display:none;max-width:280px}
+#tip b{font-family:var(--f-data);font-weight:500;color:#fff}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#11151a;border-left:1px solid #2f363e;z-index:30;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.drawer.open{transform:none}
+.dr-head{padding:20px 22px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.dr-head h3{margin:0;font:700 24px/1.1 var(--f-label);color:#fff;word-break:break-all}
+.dr-head .st{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:14px}
+.dr-head .st .led{width:10px;height:10px;border-radius:50%}
+.x{background:none;border:1px solid #3a414a;border-radius:4px;width:34px;height:34px;cursor:pointer;flex:none}
+.dr-body{padding:14px 22px;overflow:auto}
+dl{display:grid;grid-template-columns:120px 1fr;gap:8px 12px;margin:0}
+dt{color:var(--silk-dim);font-size:13px} dd{margin:0;font-family:var(--f-data);font-size:13px;word-break:break-word}
+.flags{margin-top:16px;padding:10px 12px;background:#e9c46a12;border:1px solid #e9c46a40;border-radius:4px;font-size:13px;color:#f1d48a}
+.actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.actions a,.actions button{background:#1f6f3f;border:1px solid #2a8a50;color:#fff;text-decoration:none;padding:9px 14px;border-radius:4px;font-size:14px;cursor:pointer}
+.actions .ghost{background:#22282f;border-color:#3a414a}
+
+/* lower section */
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:10px}
+.box{background:var(--rack-2);border:1px solid var(--line);border-radius:4px}
+.box h2{font:700 20px var(--f-label);margin:0;padding:14px 16px;border-bottom:1px solid var(--line);color:#eef2f6;display:flex;justify-content:space-between;align-items:baseline}
+.box h2 small{font:400 13px var(--f-body);color:var(--silk-dim)}
+.scroll{max-height:380px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:#20262d;text-align:left;font:600 13px var(--f-label);letter-spacing:.3px;padding:8px 10px;color:var(--silk-dim);cursor:pointer;white-space:nowrap}
+td{padding:7px 10px;border-top:1px solid #232930;vertical-align:top}
+td.m{font-family:var(--f-data);font-size:12px}
+tr.click{cursor:pointer} tr.click:hover td{background:#ffffff08}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+.pill .led{width:8px;height:8px;border-radius:50%}
+.sev{display:inline-block;padding:1px 7px;border-radius:9px;font:600 11px var(--f-label);letter-spacing:.5px;color:#fff;white-space:nowrap}
+.sev.Critical{background:#d92d20}.sev.High{background:#e07a10}.sev.Medium{background:#2e6fd8}.sev.Low,.sev.Info{background:#4b5561}
+.port.sec .sock{box-shadow:0 0 0 2px var(--fault),0 0 8px var(--fault)}
+.secd{margin-top:16px;border:1px solid #ff3b3b55;background:#ff3b3b10;border-radius:4px;padding:8px 10px;font-size:13px}
+.secd div{padding:5px 0;border-bottom:1px solid #ff3b3b22}.secd div:last-child{border:0}
+.secnote{font:600 11px var(--f-label);letter-spacing:.6px;color:var(--warn);margin-left:8px}
+.empty{padding:22px 16px;color:var(--silk-dim);font-size:14px}
+.full{grid-column:1/-1}
+footer{margin-top:26px;color:var(--silk-dim);font-size:12px;border-top:1px solid var(--line);padding-top:12px}
+
+@media (max-width:900px){.lower{grid-template-columns:1fr}header.top{grid-template-columns:1fr}.clock{text-align:left}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.port.up .l2{background:var(--act)}}
+</style>
+</head>
+<body>
+<div class="wrap"><div style="background:#5cc8ff18;border:1px solid #5cc8ff55;color:#cfe9ff;padding:8px 12px;border-radius:4px;font-size:13px;margin-bottom:14px">Portfolio demo — all networks, hosts, people and alerts are fictional. Built by Mohammad Khurshed Alam: PowerShell monitoring engine + Windows Event Forwarding security alerts + this dashboard.</div>
+  <header class="top">
+    <div>
+      <h1>Network Port Map — Live Demo</h1>
+      <div class="sub" id="sub">Loading scan data…</div>
+    </div>
+    <div class="clock"><span class="live" id="live"><i></i>LIVE</span><b id="clk">--:--:--</b><span id="scaninfo"></span></div>
+  </header>
+
+  <nav class="panel" id="panel" aria-label="Filter by status"></nav>
+
+  <div class="controls">
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" placeholder="Search hostname, IP, MAC, owner, department, vendor…" aria-label="Search devices"></div>
+    <select id="ftype" aria-label="Device type"><option value="">All device types</option></select>
+    <select id="fnet" aria-label="Network"><option value="">All networks</option></select>
+    <label class="tog"><input type="checkbox" id="fcrit"> Critical only</label>
+    <label class="tog"><input type="checkbox" id="fflag"> With findings</label>
+    <span class="count" id="count"></span>
+  </div>
+
+  <main id="rack"></main>
+
+  <section class="lower">
+    <div class="box"><h2>State changes <small id="evcount"></small></h2><div class="scroll" id="events"></div></div>
+    <div class="box"><h2>Currently down <small id="downcount"></small></h2><div class="scroll" id="downs"></div></div>
+    <div class="box full"><h2><span>Security alerts <span class="secnote" id="secmode"></span></span><small id="seccount"></small></h2><div class="scroll" style="max-height:420px" id="sec"></div></div>
+    <div class="box full"><h2>Device list <small id="tblcount"></small></h2><div class="scroll" style="max-height:520px" id="table"></div></div>
+  </section>
+
+  <footer>
+    <span class="pill"><i class="led g"></i>Link up, amber flicker = activity</span> &nbsp;
+    <span class="pill"><i class="led r"></i>Monitored device not responding</span> &nbsp;
+    <span class="pill"><i class="led y"></i>Answer not verified</span> &nbsp;
+    <span class="pill"><i class="led o"></i>Free address or no reply</span> &nbsp;
+    <span class="pill"><i class="led b"></i>Blue underline = critical device</span>
+    <div id="foot" style="margin-top:8px"></div>
+  </footer>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<aside class="drawer" id="drawer" aria-label="Device details"><div class="dr-head"><div><h3 id="dTitle"></h3><div class="st" id="dState"></div></div><button class="x" id="dClose" aria-label="Close details">✕</button></div><div class="dr-body" id="dBody"></div></aside>
+
+<script src="data.js"></script>
+<script>
+(function(){
+const S={up:{l:"Up",c:"g"},down:{l:"Down",c:"r"},unverified:{l:"Unverified",c:"y"},unreachable:{l:"No reply",c:"o"},free:{l:"Free",c:"o"}};
+const state={status:"",q:"",type:"",net:"",crit:false,flag:false,sel:null,sortK:"ip",sortD:1};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let D,all=[],SEC={};
+function buildSec(){SEC={};((window.SEC_DATA||{}).events||[]).forEach(e=>{const k=(e.pc||"").toLowerCase();(SEC[k]=SEC[k]||[]).push(e)})}
+function secHot(d){const ev=SEC[(d.host||"").toLowerCase()];if(!ev)return false;const lim=Date.now()-864e5;return ev.some(e=>(e.sev==="Critical"||e.sev==="High")&&(window.SEC_DATA.mode==="demo"||new Date(e.time.replace(" ","T")+"+03:00")>lim))}
+
+function ipNum(ip){return ip.split(".").reduce((a,b)=>a*256+ +b,0)}
+function build(){
+  D=window.NET_DATA; if(!D){$("sub").textContent="No data found. Run NetMonitor.ps1 to create status.js next to this page.";return false}
+  const byIp={}; (D.devices||[]).forEach(d=>byIp[d.ip]=d);
+  all=[];
+  D.ranges.forEach(r=>{for(let i=r.start;i<=r.end;i++){const ip=r.prefix+"."+i;const d=byIp[ip]||{ip,status:r.defaultStatus};d.net=r.id;d.last=i;all.push(d)}});
+  return true;
+}
+function matches(d){
+  if(state.status&&d.status!==state.status)return false;
+  if(state.type&&d.type!==state.type)return false;
+  if(state.net&&d.net!==state.net)return false;
+  if(state.crit&&d.critical!=="Yes")return false;
+  if(state.flag&&!d.flags)return false;
+  if(state.q){const h=[d.ip,d.host,d.mac,d.owner,d.dept,d.vendor,d.type,d.role,d.email].join(" ").toLowerCase();if(!h.includes(state.q))return false}
+  return true;
+}
+const filtering=()=>state.status||state.q||state.type||state.net||state.crit||state.flag;
+
+function renderPanel(){
+  const c={up:0,down:0,unverified:0,unreachable:0,free:0};all.forEach(d=>c[d.status]=(c[d.status]||0)+1);
+  const items=[["up","Up"],["down","Down"],["unverified","Unverified"],["unreachable","No reply"],["free","Free addresses"]];
+  $("panel").innerHTML=items.map(([k,l])=>`<button class="stat" data-s="${k}" aria-pressed="${state.status===k}"><i class="led ${S[k].c}"></i><span><span class="n">${c[k].toLocaleString()}</span><br><span class="t">${l}</span></span></button>`).join("");
+  $("panel").querySelectorAll(".stat").forEach(b=>b.onclick=()=>{state.status=state.status===b.dataset.s?"":b.dataset.s;renderAll()});
+}
+function rnd(seed){let x=Math.sin(seed*9301+49297)*233280;return x-Math.floor(x)}
+function portHTML(d,hit){
+  const cls=["port",d.status];if(d.critical==="Yes")cls.push("crit");if(d.flags&&d.flags!=="No DNS name")cls.push("flag");
+  if(filtering())cls.push(hit?"hit":"dim"); if(state.sel===d.ip)cls.push("sel");if(secHot(d))cls.push("sec");
+  const n=ipNum(d.ip),dur=(0.7+rnd(n)*1.6).toFixed(2),off=(rnd(n+7)*-2).toFixed(2);
+  return `<button class="${cls.join(" ")}" data-ip="${d.ip}" style="--d:${dur}s;--o:${off}s" aria-label="${esc(d.ip)} ${esc(d.host||"")} ${S[d.status].l}"><span class="leds"><span class="l l1"></span><span class="l l2"></span></span><span class="sock"></span></button>`;
+}
+function renderRack(){
+  let html="",shown=0;
+  D.ranges.forEach(r=>{
+    if(state.net&&state.net!==r.id)return;
+    const ports=all.filter(d=>d.net===r.id);
+    const c={};ports.forEach(d=>c[d.status]=(c[d.status]||0)+1);
+    html+=`<section class="chassis"><div class="ch-head"><h2>${esc(r.name)}</h2><span class="cidr">${r.prefix}.${r.start} – ${r.prefix}.${r.end}</span><span class="mini">${["up","down","unverified","unreachable"].filter(k=>c[k]).map(k=>`<span><i class="led ${S[k].c}"></i>${c[k]} ${S[k].l.toLowerCase()}</span>`).join("")}<span>${esc(r.site)}</span></span></div>`;
+    if(r.note)html+=`<p class="note">${esc(r.note)}</p>`;
+    html+=`<div class="units">`;
+    for(let u=0;u<ports.length;u+=48){
+      const chunk=ports.slice(u,u+48);
+      const top=chunk.filter((_,i)=>i%2===0),bot=chunk.filter((_,i)=>i%2===1);
+      const row=(arr,nums)=>{let s=`<div class="prow">`;for(let g=0;g<arr.length;g+=6){s+=`<div class="grp">`;arr.slice(g,g+6).forEach(d=>{const hit=matches(d);if(hit)shown++;s+=nums?`<span class="num">.${d.last}</span>`:portHTML(d,hit)});s+=`</div>`}return s+`</div>`};
+      const lab=`.${chunk[0].last} – .${chunk[chunk.length-1].last}`;
+      html+=`<div class="unit"><div class="ear"><i></i><span>${lab}</span><i></i></div><div class="face">${row(top,1)}${row(top)}${row(bot)}${row(bot,1)}</div><div class="ear"><i></i><span>${esc(r.id)}</span><i></i></div></div>`;
+    }
+    html+=`</div></section>`;
+  });
+  $("rack").innerHTML=html;
+  // count once per device, row() above counted top+num rows twice
+  const n=all.filter(d=>(!state.net||d.net===state.net)&&matches(d)).length;
+  $("count").textContent=filtering()?`${n.toLocaleString()} matching`:"";
+}
+function pill(s){return `<span class="pill"><i class="led ${S[s].c}"></i>${S[s].l}</span>`}
+function renderLists(){
+  const ev=(D.events||[]).slice().reverse();
+  $("evcount").textContent=ev.length?`last ${ev.length}`:"";
+  $("events").innerHTML=ev.length?`<table><thead><tr><th>Time</th><th>Event</th><th>Device</th><th>IP</th></tr></thead><tbody>${ev.map(e=>`<tr class="click" data-ip="${esc(e.ip)}"><td class="m">${esc(e.time)}</td><td>${e.type==="UP"?pill("up"):e.type==="DOWN"?pill("down"):`<span class="pill"><i class="led b"></i>${esc(e.type)}</span>`}</td><td>${esc(e.host||"—")}</td><td class="m">${esc(e.ip)}</td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">No state changes recorded yet. This page shows the imported baseline scan; the monitor starts logging ups and downs from its first run.</div>`;
+  const dn=all.filter(d=>d.status==="down").sort((a,b)=>(b.critical==="Yes")-(a.critical==="Yes")||ipNum(a.ip)-ipNum(b.ip));
+  $("downcount").textContent=`${dn.length} devices`;
+  $("downs").innerHTML=dn.length?`<table><thead><tr><th>Device</th><th>IP</th><th>Type</th><th>Owner</th></tr></thead><tbody>${dn.map(d=>`<tr class="click" data-ip="${d.ip}"><td>${d.critical==="Yes"?"<b>":""}${esc(d.host||"(no name)")}${d.critical==="Yes"?"</b>":""}</td><td class="m">${d.ip}</td><td>${esc(d.type)}</td><td>${esc(d.owner||"—")}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Everything monitored is responding.</div>`;
+  const cols=[["status","Status"],["ip","IP address"],["host","Hostname"],["mac","MAC address"],["vendor","Vendor"],["type","Type"],["owner","Owner"],["dept","Department"],["flags","Findings"]];
+  let rows=all.filter(d=>d.status!=="free"&&d.status!=="unreachable"&&!(d.status==="unverified"&&!d.host)&&matches(d));
+  rows.sort((a,b)=>{const k=state.sortK;let x=k==="ip"?ipNum(a.ip):(a[k]||"").toString().toLowerCase(),y=k==="ip"?ipNum(b.ip):(b[k]||"").toString().toLowerCase();return (x>y?1:x<y?-1:0)*state.sortD});
+  $("tblcount").textContent=`${rows.length} devices`;
+  $("table").innerHTML=`<table><thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" aria-sort="${state.sortK===k?(state.sortD>0?"ascending":"descending"):"none"}">${l}${state.sortK===k?(state.sortD>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>${rows.map(d=>`<tr class="click" data-ip="${d.ip}"><td>${pill(d.status)}</td><td class="m">${d.ip}</td><td>${esc(d.host||"—")}</td><td class="m">${esc(d.mac||"")}</td><td>${esc(d.vendor||"")}</td><td>${esc(d.type||"")}</td><td>${esc(d.owner||"")}</td><td>${esc(d.dept||"")}</td><td style="color:#f1d48a">${esc(d.flags||"")}</td></tr>`).join("")}</tbody></table>`;
+  $("table").querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(state.sortK===k)state.sortD*=-1;else{state.sortK=k;state.sortD=1}renderLists()});
+  renderSec();
+  document.querySelectorAll("tr.click").forEach(tr=>tr.onclick=()=>openDrawer(tr.dataset.ip));
+}
+function renderSec(){
+  const SD=window.SEC_DATA,ev=((SD||{}).events||[]).slice().reverse().filter(e=>!state.q||[e.pc,e.user,e.owner,e.what,e.detail,e.type,e.ip].join(" ").toLowerCase().includes(state.q));
+  $("secmode").textContent=SD&&SD.mode==="demo"?"DEMO DATA":"";
+  $("seccount").textContent=ev.length?`${ev.length} events · installs, downloads, antivirus`:"";
+  if(!SD){$("sec").innerHTML=`<div class="empty">SecurityWatch is not running yet. Install it from the SecurityWatch folder to see software installs, downloads and virus alerts here.</div>`;return}
+  $("sec").innerHTML=ev.length?`<table><thead><tr><th>Time</th><th>Severity</th><th>Event</th><th>What</th><th>PC</th><th>User / owner</th></tr></thead><tbody>${ev.map(e=>`<tr class="click" data-ip="${esc(e.ip)}"><td class="m">${esc(e.time)}</td><td><span class="sev ${esc(e.sev)}">${esc(e.sev.toUpperCase())}</span></td><td>${esc(e.type)}</td><td><b>${esc(e.what)}</b><br><span style="color:var(--silk-dim);font-size:12px">${esc(e.detail)}</span></td><td>${esc(e.pc)}<br><span class="m" style="color:var(--silk-dim)">${esc(e.ip)}</span></td><td>${esc(e.user)}<br><span style="color:var(--silk-dim)">${esc(e.owner||"")}</span></td></tr>`).join("")}</tbody></table>`:`<div class="empty">No installs, downloads or virus detections reported.</div>`;
+}
+function openDrawer(ip){
+  const d=all.find(x=>x.ip===ip);if(!d)return;state.sel=ip;
+  $("dTitle").textContent=d.host||d.ip;
+  $("dState").innerHTML=`<i class="led ${S[d.status].c}"></i>${S[d.status].l}${d.critical==="Yes"?" · critical device":""}`;
+  const f=[["IP address",d.ip],["MAC address",d.mac],["Vendor",d.vendor],["Device type",d.type],["Role",d.role],["Owner",d.owner],["Department",d.dept],["Email",d.email],["Network",(D.ranges.find(r=>r.id===d.net)||{}).name],["Last change",d.lastChange],["Last seen",d.lastSeen],["Availability",d.avail]].filter(x=>x[1]);
+  const subj=encodeURIComponent(`[IT] Your device ${d.host||d.ip}`);
+  $("dBody").innerHTML=`<dl>${f.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>${d.flags?`<div class="flags">${esc(d.flags)}</div>`:""}
+  ${(SEC[(d.host||"").toLowerCase()]||[]).length?`<div class="secd"><b>Security events</b>${SEC[(d.host||"").toLowerCase()].slice(-8).reverse().map(e=>`<div><span class="sev ${esc(e.sev)}">${esc(e.sev.toUpperCase())}</span> ${esc(e.type)}: <b>${esc(e.what)}</b><br><span style="color:var(--silk-dim)">${esc(e.time)} · ${esc(e.user)}</span></div>`).join("")}</div>`:""}
+  <div class="actions">${d.email?`<a href="mailto:${esc(d.email)}?subject=${subj}">Email owner</a>`:""}<button class="ghost" id="cp">Copy details</button></div>`;
+  $("cp").onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(f.map(x=>x.join(": ")).join("\n"));$("cp").textContent="Copied"};
+  $("drawer").classList.add("open");renderRack();
+}
+$("dClose").onclick=()=>{$("drawer").classList.remove("open");state.sel=null;renderRack()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("dClose").click()});
+$("rack").addEventListener("click",e=>{const p=e.target.closest(".port");if(p)openDrawer(p.dataset.ip)});
+$("rack").addEventListener("mousemove",e=>{const p=e.target.closest(".port"),t=$("tip");if(!p){t.style.display="none";return}
+  const d=all.find(x=>x.ip===p.dataset.ip);t.innerHTML=`<b>${d.ip}</b> · ${S[d.status].l}<br>${esc(d.host||"no hostname")}${d.owner?"<br>"+esc(d.owner):""}${d.type?"<br><span style='color:#8b96a3'>"+esc(d.type)+"</span>":""}`;
+  t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-290)+"px";t.style.top=(e.clientY+14)+"px"});
+$("rack").addEventListener("mouseleave",()=>$("tip").style.display="none");
+$("q").oninput=e=>{state.q=e.target.value.trim().toLowerCase();renderRack();renderLists()};
+$("ftype").onchange=e=>{state.type=e.target.value;renderAll()};
+$("fnet").onchange=e=>{state.net=e.target.value;renderAll()};
+$("fcrit").onchange=e=>{state.crit=e.target.checked;renderAll()};
+$("fflag").onchange=e=>{state.flag=e.target.checked;renderAll()};
+
+function renderAll(){renderPanel();renderRack();renderLists()}
+function header(){
+  const g=new Date(D.generated);const total=all.length;
+  $("sub").textContent=`${D.ranges.length} networks · ${total.toLocaleString()} addresses · scanned from ${D.probe||"monitoring server"}`;
+  $("scaninfo").textContent=`Last scan ${isNaN(g)?D.generated:g.toLocaleString("en-GB",{timeZone:"Asia/Kuwait",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}`;
+  const age=(Date.now()-g)/60000,old=D.mode==="snapshot"||age>(D.intervalMin||5)*3;$("live").className="live"+(old?" stale":"");
+  $("live").lastChild.textContent=D.mode==="snapshot"?"DEMO":old?"DATA OLD":"LIVE";
+  $("foot").textContent=`Mode: ${D.mode||"live"}. Alerts are emailed to ${(D.alertTo||[]).join(", ")||"the configured mailbox"}. Page refreshes every 60 seconds.`;
+}
+function fillSelects(){
+  const types=[...new Set(all.map(d=>d.type).filter(Boolean))].sort();
+  $("ftype").innerHTML=`<option value="">All device types</option>`+types.map(t=>`<option ${t===state.type?"selected":""}>${esc(t)}</option>`).join("");
+  $("fnet").innerHTML=`<option value="">All networks</option>`+D.ranges.map(r=>`<option value="${r.id}" ${r.id===state.net?"selected":""}>${esc(r.name)}</option>`).join("");
+}
+function tick(){$("clk").textContent=new Date().toLocaleTimeString("en-GB",{timeZone:"Asia/Kuwait"})+" KWT"}
+setInterval(tick,1000);tick();
+function boot(){buildSec();if(build()){header();fillSelects();renderAll()}}
+boot();
+// live refresh: re-load status.js beside this page
+if(window.NET_DATA&&window.NET_DATA.mode!=="snapshot")setInterval(()=>{const s=document.createElement("script");s.src="status.js?t="+Date.now();s.onload=()=>{boot();s.remove()};document.body.appendChild(s);
+  const t=document.createElement("script");t.src="security.js?t="+Date.now();t.onload=()=>{boot();t.remove()};t.onerror=()=>t.remove();document.body.appendChild(t)},60000);
+})();
+</script>
+</body>
+</html>
